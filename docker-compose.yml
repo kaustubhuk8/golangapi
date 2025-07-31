@@ -1,0 +1,81 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: manifold
+      MYSQL_USER: manifold
+      MYSQL_PASSWORD: manifoldpassword
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: >
+      --innodb-buffer-pool-size=2G
+      --innodb-log-file-size=512M
+      --innodb-log-buffer-size=64M
+      --max-connections=1000
+      --thread-cache-size=300
+      --innodb-thread-concurrency=0
+      --innodb-read-io-threads=8
+      --innodb-write-io-threads=8
+      --innodb-flush-log-at-trx-commit=2
+      --sync-binlog=0
+      --innodb-flush-method=O_DIRECT
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 1g
+      --maxmemory-policy allkeys-lru
+      --tcp-keepalive 60
+      --timeout 300
+      --tcp-backlog 511
+      --maxclients 10000
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: manifold
+      DB_PASSWORD: manifoldpassword
+      DB_NAME: manifold
+      REDIS_ADDR: redis:6379
+      SERVER_PORT: 8080
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+volumes:
+  mysql_data:
+  redis_data:
