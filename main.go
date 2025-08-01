@@ -309,7 +309,7 @@ func (s *Server) generateDataHandler(w http.ResponseWriter, r *http.Request) {
             wordCount++
 
             
-            delay := time.Duration(500 + rand.Intn(1500)) * time.Millisecond
+            delay := time.Duration(500 + rand.Intn(500)) * time.Millisecond
             time.Sleep(delay)
         }
     }

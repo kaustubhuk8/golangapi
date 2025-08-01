@@ -8,7 +8,7 @@ This project implements a streaming data generation API that handles high-concur
 
 ## ✨ Features
 
-- **Streaming Data Generation**: Real-time word streaming with random delays (0.5-2 seconds)
+- **Streaming Data Generation**: Real-time word streaming with random delays (0.5-1 seconds)
 - **Rate Limiting**: 100 requests per minute per user with automatic cleanup
 - **User Quota Management**: 1M words per user with automatic decrement
 - **High Concurrency**: Handles 5000+ concurrent requests from multiple users
@@ -170,49 +170,6 @@ REDIS_ADDR=localhost:6379 # Redis address
 SERVER_PORT=8080          # API server port
 ```
 
-## 🛠️ Development Commands
-
-```bash
-# Build application
-make build
-
-# Run locally (requires local MySQL/Redis)
-make run
-
-# Start all services with Docker
-make docker-up
-
-# Stop all services
-make docker-down
-
-# View logs
-make docker-logs
-
-# Restart services
-make docker-restart
-
-# Check API stats
-make stats
-
-# Monitor performance
-make monitor
-
-# Connect to database
-make db-shell
-
-# Connect to Redis
-make redis-shell
-
-# Format code
-make format
-
-# Run tests
-make test
-
-# Clean build artifacts
-make clean
-```
-
 ## 🔧 Technical Implementation
 
 ### Rate Limiting
@@ -243,34 +200,6 @@ make clean
 - **Context cancellation** for timeouts
 - **Graceful shutdown** handling
 
-## 🧪 Testing
-
-### Manual Testing
-
-```bash
-# Test streaming (30 seconds)
-curl -X POST -H "X-User-Id: user1" --no-buffer --max-time 30 http://localhost:8080/generate-data
-
-# Test rate limiting
-for i in {1..110}; do
-  curl -X POST -H "X-User-Id: user1" http://localhost:8080/generate-data
-  echo "Request $i"
-done
-
-# Test quota exhaustion
-# (Make multiple requests until words_left reaches 0)
-```
-
-### Load Testing
-
-The application is designed to handle 5000+ concurrent requests from 10 users. Key optimizations:
-
-- **Connection pooling** prevents database overload
-- **Redis caching** reduces database queries by 90%+
-- **Background processing** keeps response times fast
-- **Rate limiting** prevents request floods
-- **Memory management** with automatic cleanup
-
 ## 🐳 Docker Setup
 
 ### Services
@@ -288,14 +217,6 @@ The application is designed to handle 5000+ concurrent requests from 10 users. K
 
 All services include health checks to ensure proper startup order.
 
-## 📊 Performance Characteristics
-
-- **Response Time**: < 100ms for quota checks (cached)
-- **Streaming**: Real-time word delivery with 0.5-2s delays
-- **Concurrency**: 5000+ concurrent requests supported
-- **Database Load**: Optimized with caching and connection pooling
-- **Memory Usage**: Automatic cleanup prevents memory leaks
-
 ## 🔒 Security & Error Handling
 
 - **Input validation** for all endpoints
@@ -303,40 +224,3 @@ All services include health checks to ensure proper startup order.
 - **Rate limiting** prevents abuse
 - **Quota enforcement** prevents resource exhaustion
 - **Graceful error handling** with detailed logging
-
-## 🚀 Production Deployment
-
-This application is production-ready with:
-
-- **Health monitoring** endpoints
-- **Graceful shutdown** handling
-- **Comprehensive logging**
-- **Resource management**
-- **Error recovery**
-- **Scalable architecture**
-
-## 📝 Assignment Requirements Met
-
-✅ **Single endpoint** `POST /generate-data`  
-✅ **User ID validation** from `X-User-Id` header  
-✅ **LLM simulation** with streaming and random delays  
-✅ **Database tables** (users, requests) with proper schema  
-✅ **Request saving** and word quota decrement  
-✅ **5000+ concurrent requests** handling  
-✅ **Dockerized application** with complete setup  
-✅ **Bonus: Reject at 0 words** with proper HTTP status  
-✅ **Bonus: Redis caching** for performance optimization  
-✅ **Bonus: Creative enhancements** (health checks, user stats, etc.)
-
-## 🤝 Contributing
-
-This is a takehome project for Manifold Labs. The implementation demonstrates:
-
-- **Go expertise** with proper concurrency and error handling
-- **System architecture** skills for high-performance APIs
-- **Production thinking** with monitoring and operational concerns
-- **Problem-solving** approach to real-world challenges
-
-## 📄 License
-
-This project is created for the Manifold Labs takehome assignment.
