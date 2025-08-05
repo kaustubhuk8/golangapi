@@ -7,13 +7,21 @@ GO_FILES := $(shell find . -name '*.go' -type f)
 
 # Default target
 help: ## Show this help message
-	@echo "Available commands:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@echo "🚀 MANIFOLD API - AVAILABLE COMMANDS"
+	@echo "====================================="
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "%-20s %s\n", $$1, $$2}'
+	@echo ""
+	@echo "🎯 INTERVIEW PREPARATION WORKFLOW:"
+	@echo "1. make fresh-start     # Complete reset and fresh start"
+	@echo "2. make load-test-quick # Quick test (5 minutes)"
+	@echo "3. make load-test-full  # Full assessment test (60-90 minutes)"
+	@echo ""
 
 build: ## Build the Go application
 	@echo "Building $(APP_NAME)..."
 	@go mod tidy
-	@go build -o bin/$(APP_NAME) .
+	@go build -o bin/$(APP_NAME) ./cmd/api
 	@echo "Build complete: bin/$(APP_NAME)"
 
 run: build ## Run the application locally
@@ -98,7 +106,7 @@ benchmark: ## Run benchmarks
 # Production helpers
 production-build: ## Build for production
 	@echo "Building for production..."
-	@CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-w -s' -o bin/$(APP_NAME) .
+	@CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-w -s' -o bin/$(APP_NAME) ./cmd/api
 	@echo "Production build complete"
 
 security-scan: ## Run security scan
@@ -116,13 +124,95 @@ format: ## Format code
 	@go fmt ./...
 	@go mod tidy
 
+# Load testing
+load-test: ## Run quick load test (100 requests, 20 concurrent)
+	@echo "Running quick load test..."
+	@chmod +x load_test.sh
+	@./load_test.sh
+
+load-test-quick: ## Run very quick load test (50 requests, 10 concurrent) - ~5 minutes
+	@echo "Building load test tool..."
+	@go build -o bin/load_test ./cmd/load_test
+	@echo "Running quick load test (50 requests, 10 concurrent workers)..."
+	@./bin/load_test quick
+
+load-test-full: ## Run full load test (5000 requests, 100 concurrent) - ~60-90 minutes
+	@echo "Building load test tool..."
+	@go build -o bin/load_test ./cmd/load_test
+	@echo "Running full load test (5000 requests, 100 concurrent workers)..."
+	@echo "⚠️  This will take 60-90 minutes due to 1-minute streaming per request"
+	@./bin/load_test
+
+load-test-custom: ## Run custom load test (usage: make load-test-custom REQUESTS=1000 CONCURRENT=50)
+	@echo "Running custom load test..."
+	@chmod +x load_test.sh
+	@REQUESTS=$${REQUESTS:-100} CONCURRENT=$${CONCURRENT:-20} ./load_test.sh
+
+# Fresh start for load testing
+fresh-start: ## Complete reset and fresh start for load testing
+	@echo "🧹 MANIFOLD API - FRESH START FOR LOAD TESTING"
+	@echo "=============================================="
+	@echo ""
+	@echo "Stopping all services..."
+	@docker-compose down -v 2>/dev/null || true
+	@echo "✅ Services stopped"
+	@echo ""
+	@echo "Cleaning up Docker resources..."
+	@docker system prune -f 2>/dev/null || true
+	@docker volume prune -f 2>/dev/null || true
+	@echo "✅ Docker cleanup completed"
+	@echo ""
+	@echo "Building fresh application..."
+	@docker-compose build --no-cache app
+	@echo "✅ Application built successfully"
+	@echo ""
+	@echo "Starting fresh services..."
+	@docker-compose up -d
+	@echo "✅ Services started"
+	@echo ""
+	@echo "Waiting for services to be ready..."
+	@sleep 15
+	@echo ""
+	@echo "Clearing Redis cache..."
+	@docker exec -it manifoldtest-redis-1 redis-cli FLUSHALL 2>/dev/null || true
+	@echo "✅ Redis cache cleared"
+	@echo ""
+	@echo "Verifying fresh start..."
+	@echo ""
+	@echo "API Health:"
+	@curl -s http://localhost:8080/health | jq . 2>/dev/null || echo "API not ready yet, waiting..."
+	@sleep 5
+	@echo ""
+	@echo "User Stats (user1):"
+	@curl -s -H "X-User-Id: user1" http://localhost:8080/user/stats | jq . 2>/dev/null || echo "User stats not ready yet"
+	@echo ""
+	@echo "=============================================="
+	@echo "🚀 FRESH START COMPLETE!"
+	@echo ""
+	@echo "Your application is ready for testing!"
+	@echo ""
+	@echo "📊 Quick load test (5 minutes):"
+	@echo "   make load-test-quick"
+	@echo ""
+	@echo "🎯 Full assessment test (60-90 minutes):"
+	@echo "   make load-test-full"
+	@echo ""
+	@echo "🔧 Manual testing:"
+	@echo "   curl -X POST -H 'X-User-Id: user1' --no-buffer http://localhost:8080/generate-data"
+	@echo ""
+	@echo "📈 Check stats:"
+	@echo "   curl -H 'X-User-Id: user1' http://localhost:8080/user/stats"
+	@echo ""
+	@echo "=============================================="
+
 # All-in-one commands
 quick-start: check-deps docker-up ## Quick start everything
 	@echo "Waiting for services to be ready..."
 	@sleep 10
 	@make stats
 	@echo "\n🚀 Manifold API is ready!"
-	@echo "📋 Try: curl -X POST -H 'X-User-Id: user1' http://localhost:8080/generate-data"
+	@echo "📋 Try: curl -X POST -H 'X-User-Id: user1' --no-buffer http://localhost:8080/generate-data"
+	@echo "📊 Run load test: make load-test"
 
-full-test: docker-up docker-down
+full-test: docker-up load-test docker-down ## Run full test suite including load test
 

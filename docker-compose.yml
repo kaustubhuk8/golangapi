@@ -56,12 +56,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: manifold
-      DB_PASSWORD: manifoldpassword
-      DB_NAME: manifold
-      REDIS_ADDR: redis:6379
+      DSN: manifold:manifoldpassword@tcp(mysql:3306)/manifold?parseTime=true
+      REDIS_URL: redis://redis:6379
       SERVER_PORT: 8080
     depends_on:
       mysql:
