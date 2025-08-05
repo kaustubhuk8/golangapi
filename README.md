@@ -31,6 +31,28 @@ This project implements a streaming data generation API that handles high-concur
                        └─────────────────┘
 ```
 
+## 📁 Project Structure
+
+```
+manifold-test/
+├── cmd/
+│   ├── api/              # Main API server
+│   └── load_test/        # Load testing tool
+├── internal/
+│   ├── config/           # Configuration management
+│   ├── database/         # Database connections
+│   ├── handlers/         # HTTP request handlers
+│   ├── middleware/       # Rate limiting middleware
+│   ├── models/           # Data structures
+│   └── services/         # Business logic
+├── bin/                  # Compiled binaries
+├── docker-compose.yml    # Service orchestration
+├── Dockerfile           # Application container
+├── Makefile             # Build and deployment commands
+├── init.sql             # Database initialization
+└── README.md            # This file
+```
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -45,16 +67,25 @@ git clone <repository-url>
 cd manifold-test
 ```
 
-### 2. Start All Services
+### 2. Complete Fresh Start (Recommended)
 
 ```bash
-make docker-up
+make fresh-start
 ```
 
-### 3. Verify Health
+This command will:
+
+- Stop all existing services
+- Clean up Docker resources
+- Build fresh application
+- Start all services
+- Verify everything is working
+- Clear Redis cache
+
+### 3. Alternative: Quick Start
 
 ```bash
-make stats
+make quick-start
 ```
 
 ### 4. Test the API
@@ -82,15 +113,15 @@ Generates streaming text data with random delays.
 
 **Response:**
 
-- Streaming plain text with AI-related words
-- Random delays between 0.5-2 seconds per word
+- Streaming plain text with english words
+- Random delays between 0.5-1 seconds per word
 - Maximum 60-second request duration
 
 **Example:**
 
 ```bash
 curl -X POST -H "X-User-Id: user1" --no-buffer http://localhost:8080/generate-data
-# Output: artificial intelligence machine learning neural network...
+# Output: out your want for any people...
 ```
 
 ### GET /user/stats
@@ -161,14 +192,16 @@ CREATE TABLE requests (
 Environment variables (with defaults):
 
 ```bash
-DB_HOST=localhost          # Database host
-DB_PORT=3306              # Database port
-DB_USER=root              # Database username
-DB_PASSWORD=password      # Database password
-DB_NAME=manifold          # Database name
-REDIS_ADDR=localhost:6379 # Redis address
-SERVER_PORT=8080          # API server port
+DSN=manifold:manifoldpassword@tcp(localhost:3306)/manifold?parseTime=true
+REDIS_URL=redis://localhost:6379
 ```
+
+The application uses:
+
+- **DSN**: MySQL connection string with username, password, host, port, database, and parseTime option
+- **REDIS_URL**: Redis connection URL
+
+These are automatically configured in the Docker environment via `docker-compose.yml`.
 
 ## 🔧 Technical Implementation
 
@@ -224,3 +257,65 @@ All services include health checks to ensure proper startup order.
 - **Rate limiting** prevents abuse
 - **Quota enforcement** prevents resource exhaustion
 - **Graceful error handling** with detailed logging
+
+## 🧪 Load Testing
+
+### Quick Test (5 minutes)
+
+```bash
+make load-test-quick
+```
+
+Tests 50 requests with 10 concurrent workers.
+
+### Full Assessment Test (60-90 minutes)
+
+```bash
+make load-test-full
+```
+
+Tests 5000 requests with 100 concurrent workers.
+
+### Performance Criteria
+
+- **Success Rate**: >95% requests successful
+- **Throughput**: >50 requests/second
+- **Response Time**: Average <30 seconds
+
+### Manual Testing
+
+```bash
+# Test streaming endpoint
+curl -X POST -H "X-User-Id: user1" --no-buffer http://localhost:8080/generate-data
+
+# Check user stats
+curl -H "X-User-Id: user1" http://localhost:8080/user/stats
+
+# Monitor system health
+make stats
+```
+
+## 🛠️ Development
+
+### Available Make Commands
+
+```bash
+make help                    # Show all available commands
+make fresh-start            # Complete reset and fresh start
+make quick-start            # Quick start everything
+make docker-up              # Start all services
+make docker-down            # Stop all services
+make docker-logs            # View service logs
+make stats                  # Show API stats
+make monitor                # Monitor API performance
+make load-test-quick        # Quick load test (5 minutes)
+make load-test-full         # Full load test (60-90 minutes)
+make dev                    # Run with hot reload (requires air)
+```
+
+### Development Workflow
+
+1. **Fresh Start**: `make fresh-start`
+2. **Quick Test**: `make load-test-quick`
+3. **Full Test**: `make load-test-full`
+4. **Monitor**: `make stats` or `make monitor`
