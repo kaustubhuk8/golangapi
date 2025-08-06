@@ -1,321 +1,115 @@
-# Manifold Labs Takehome Project
+# Manifold Labs — Takehome Project
 
-A high-performance Go API that simulates an LLM inference service with streaming responses, rate limiting, and user quota management.
+A high-concurrency Go API that simulates a real-time LLM inference service with streaming responses, per-user rate limits, and word quota enforcement.
 
-## 🎯 Project Overview
+## Overview
 
-This project implements a streaming data generation API that handles high-concurrency requests while maintaining database performance and user quota management. It directly mirrors real-world inference API challenges with intense request rates and concurrent data processing.
+This service streams random words with natural delays to simulate LLM output. It handles 1000s of concurrent requests while tracking user quota and enforcing request limits. Designed for production-style load testing with Docker, Redis, and MySQL integration.
 
-## ✨ Features
+## Features
 
-- **Streaming Data Generation**: Real-time word streaming with random delays (0.5-1 seconds)
-- **Rate Limiting**: 100 requests per minute per user with automatic cleanup
-- **User Quota Management**: 1M words per user with automatic decrement
-- **High Concurrency**: Handles 5000+ concurrent requests from multiple users
-- **Database Optimization**: Connection pooling, Redis caching, and background processing
-- **Production Ready**: Health checks, graceful shutdown, and comprehensive error handling
-- **Dockerized**: Complete containerized setup with MySQL and Redis
+- **Streaming Words**: Random word stream (0.5–1s delay per word)
+- **Stop Token**: Ends the stream early if a generated word matches a given token
+- **User Quota**: 1,000,000-word allowance per user (stored in MySQL, cached in Redis)
+- **Rate Limiting**: 100 requests/minute per user (in-memory sliding window)
+- **Concurrent Safe**: Context handling, goroutines, background DB writes
+- **Dockerized**: One-step orchestration with Redis and MySQL
+- **Optional Seeded Output**: Predictable word stream via `X-Seed` header
 
-## 🏗️ Architecture
+## API Endpoints
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   HTTP Client   │───▶│   Go API        │───▶│   MySQL DB      │
-│                 │    │   (Port 8080)   │    │   (Port 3307)   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │
-                              ▼
-                       ┌─────────────────┐
-                       │   Redis Cache   │
-                       │   (Port 6380)   │
-                       └─────────────────┘
-```
+#### `POST /generate-data`
 
-## 📁 Project Structure
+- Headers:
 
-```
-manifold-test/
-├── cmd/
-│   ├── api/              # Main API server
-│   └── load_test/        # Load testing tool
-├── internal/
-│   ├── config/           # Configuration management
-│   ├── database/         # Database connections
-│   ├── handlers/         # HTTP request handlers
-│   ├── middleware/       # Rate limiting middleware
-│   ├── models/           # Data structures
-│   └── services/         # Business logic
-├── bin/                  # Compiled binaries
-├── docker-compose.yml    # Service orchestration
-├── Dockerfile           # Application container
-├── Makefile             # Build and deployment commands
-├── init.sql             # Database initialization
-└── README.md            # This file
-```
+  - `X-User-Id`: (required)
+  - `X-Stop-Token`: (optional)
+  - `X-Seed`: (optional) deterministic stream if provided
 
-## 🚀 Quick Start
+- Behavior:
+  - Streams English words line by line (up to 60s)
+  - Stops if `stop-token` is encountered
+
+#### `GET /user/stats`
+
+Returns current word quota for the user.
+
+#### `GET /health`
+
+Liveness check for API, DB, and Redis.
+
+## Setup
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- Go 1.21+ (for local development)
+- Docker + Docker Compose
+- Go 1.21+ (only if building locally)
 
-### 1. Clone and Setup
-
-```bash
-git clone <repository-url>
-cd manifold-test
-```
-
-### 2. Complete Fresh Start (Recommended)
+### Quick Start
 
 ```bash
 make fresh-start
 ```
 
-This command will:
+Starts a clean environment: rebuilds images, starts services, clears Redis, and resets DB state.
 
-- Stop all existing services
-- Clean up Docker resources
-- Build fresh application
-- Start all services
-- Verify everything is working
-- Clear Redis cache
-
-### 3. Alternative: Quick Start
+To just run the app:
 
 ```bash
-make quick-start
+make docker-up
 ```
 
-### 4. Test the API
+### Example Requests
 
 ```bash
-# Test streaming endpoint
-curl -X POST -H "X-User-Id: user1" --no-buffer http://localhost:8080/generate-data
+# Start streaming
+curl -X POST -H "X-User-Id: test_user" --no-buffer http://localhost:8080/generate-data
 
-# Check user stats
-curl -H "X-User-Id: user1" http://localhost:8080/user/stats
+# With stop token
+curl -X POST -H "X-User-Id: test_user" -H "X-Stop-Token: day" --no-buffer http://localhost:8080/generate-data
 
-# Health check
-curl http://localhost:8080/health
+# With deterministic seed
+curl -X POST -H "X-User-Id: test_user" -H "X-Seed: 42" --no-buffer http://localhost:8080/generate-data
 ```
 
-## 📋 API Endpoints
+## Load Testing
 
-### POST /generate-data
+- `make load-test-quick` — 50 requests / 10 workers (~5 mins)
+- `make load-test-full` — 5000 requests / 100 workers (~60–90 mins)
 
-Generates streaming text data with random delays.
-
-**Headers:**
-
-- `X-User-Id` (required): User identifier
-
-**Response:**
-
-- Streaming plain text with english words
-- Random delays between 0.5-1 seconds per word
-- Maximum 60-second request duration
-
-**Example:**
+## Development
 
 ```bash
-curl -X POST -H "X-User-Id: user1" --no-buffer http://localhost:8080/generate-data
-# Output: out your want for any people...
+make help          # List commands
+make dev           # Run with hot reload (requires 'air')
+make docker-logs   # View logs
+make stats         # View user + health stats
+make monitor       # Stream system status
 ```
 
-### GET /user/stats
+## Tech Stack
 
-Returns user's current word quota and usage.
+- **Go 1.21**
+- **MySQL 8** (Docker, port `3307`)
+- **Redis** (Docker, port `6380`)
+- **Docker Compose** for orchestration
+- **Makefile** for repeatable commands
 
-**Headers:**
-
-- `X-User-Id` (required): User identifier
-
-**Response:**
-
-```json
-{
-  "user_id": "user1",
-  "words_left": 999500,
-  "total_words": 1000000
-}
-```
-
-### GET /health
-
-Returns service health status.
-
-**Response:**
-
-```json
-{
-  "status": "healthy",
-  "database": "healthy",
-  "redis": "healthy",
-  "timestamp": "2025-07-31T22:04:49Z"
-}
-```
-
-## 🗄️ Database Schema
-
-### Users Table
+## Schema Summary
 
 ```sql
 CREATE TABLE users (
-    user_id VARCHAR(255) PRIMARY KEY,
-    words_left INT NOT NULL DEFAULT 1000000,
-    total_words INT NOT NULL DEFAULT 1000000,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_words_left (words_left)
-) ENGINE=InnoDB;
-```
+  user_id VARCHAR(255) PRIMARY KEY,
+  words_left INT DEFAULT 1000000,
+  total_words INT DEFAULT 1000000,
+  ...
+);
 
-### Requests Table
-
-```sql
 CREATE TABLE requests (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id VARCHAR(255) NOT NULL,
-    data TEXT,
-    duration INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_user_id (user_id),
-    INDEX idx_created_at (created_at),
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id VARCHAR(255),
+  data TEXT,
+  duration INT,
+  ...
+);
 ```
-
-## ⚙️ Configuration
-
-Environment variables (with defaults):
-
-```bash
-DSN=manifold:manifoldpassword@tcp(localhost:3306)/manifold?parseTime=true
-REDIS_URL=redis://localhost:6379
-```
-
-The application uses:
-
-- **DSN**: MySQL connection string with username, password, host, port, database, and parseTime option
-- **REDIS_URL**: Redis connection URL
-
-These are automatically configured in the Docker environment via `docker-compose.yml`.
-
-## 🔧 Technical Implementation
-
-### Rate Limiting
-
-- **In-memory rate limiter** with automatic cleanup
-- **100 requests per minute** per user
-- **Sliding window** implementation
-- **Background cleanup** every minute
-
-### Caching Strategy
-
-- **Redis caching** for user word quotas
-- **5-minute cache expiration**
-- **Database fallback** for cache misses
-- **Cache invalidation** on quota updates
-
-### Database Optimization
-
-- **Connection pooling** (200 max connections)
-- **Background processing** for database writes
-- **Database transactions** for quota updates
-- **Proper indexing** for performance
-
-### Concurrency Handling
-
-- **Goroutines** for background processing
-- **Mutexes** for thread-safe operations
-- **Context cancellation** for timeouts
-- **Graceful shutdown** handling
-
-## 🐳 Docker Setup
-
-### Services
-
-- **app**: Go API server (Port 8080)
-- **mysql**: MySQL database (Port 3307)
-- **redis**: Redis cache (Port 6380)
-
-### Volumes
-
-- `mysql_data`: Persistent MySQL data
-- `redis_data`: Persistent Redis data
-
-### Health Checks
-
-All services include health checks to ensure proper startup order.
-
-## 🔒 Security & Error Handling
-
-- **Input validation** for all endpoints
-- **Proper HTTP status codes** for different error conditions
-- **Rate limiting** prevents abuse
-- **Quota enforcement** prevents resource exhaustion
-- **Graceful error handling** with detailed logging
-
-## 🧪 Load Testing
-
-### Quick Test (5 minutes)
-
-```bash
-make load-test-quick
-```
-
-Tests 50 requests with 10 concurrent workers.
-
-### Full Assessment Test (60-90 minutes)
-
-```bash
-make load-test-full
-```
-
-Tests 5000 requests with 100 concurrent workers.
-
-### Performance Criteria
-
-- **Success Rate**: >95% requests successful
-- **Throughput**: >50 requests/second
-- **Response Time**: Average <30 seconds
-
-### Manual Testing
-
-```bash
-# Test streaming endpoint
-curl -X POST -H "X-User-Id: user1" --no-buffer http://localhost:8080/generate-data
-
-# Check user stats
-curl -H "X-User-Id: user1" http://localhost:8080/user/stats
-
-# Monitor system health
-make stats
-```
-
-## 🛠️ Development
-
-### Available Make Commands
-
-```bash
-make help                    # Show all available commands
-make fresh-start            # Complete reset and fresh start
-make quick-start            # Quick start everything
-make docker-up              # Start all services
-make docker-down            # Stop all services
-make docker-logs            # View service logs
-make stats                  # Show API stats
-make monitor                # Monitor API performance
-make load-test-quick        # Quick load test (5 minutes)
-make load-test-full         # Full load test (60-90 minutes)
-make dev                    # Run with hot reload (requires air)
-```
-
-### Development Workflow
-
-1. **Fresh Start**: `make fresh-start`
-2. **Quick Test**: `make load-test-quick`
-3. **Full Test**: `make load-test-full`
-4. **Monitor**: `make stats` or `make monitor`
