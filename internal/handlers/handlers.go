@@ -77,6 +77,7 @@ func (h *Handler) GenerateData(c echo.Context) error {
 	seedStr := c.Request().Header.Get("X-Seed")
 	var streamRand *rand.Rand
 
+	
 	if seedStr != "" {
 		// Deterministic mode
 		seed := int64(0)
@@ -85,6 +86,11 @@ func (h *Handler) GenerateData(c echo.Context) error {
 	} else {
 		// Random mode
 		streamRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	}
+	
+	maxTokens := -1
+	if maxTokenStr := c.Request().Header.Get("X-Max-Tokens"); maxTokenStr != "" {
+		fmt.Sscanf(maxTokenStr, "%d", &maxTokens)
 	}
 	
 	// Check rate limit
@@ -117,56 +123,36 @@ func (h *Handler) GenerateData(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	
-			for {
-			select {
-			case <-ctx.Done():
+	for {
+		select {
+		case <-ctx.Done():
+			goto end
+		default:
+			if (maxTokens != -1 && wordsGenerated >= maxTokens) || wordsGenerated >= user.WordsLeft {
 				goto end
-			default:
-				// Check if we have words left
-				if wordsGenerated >= user.WordsLeft {
-					goto end
-				}
-				
-				// Generate single random word with optional stop token support
-				word, stopTokenFound := services.GenerateRandomWords(streamRand,1, stopToken)
-				
-				// Check if stop token was generated
-				if stopTokenFound {
-					// Send the stop token and end
-					if _, err := fmt.Fprintf(c.Response().Writer, "%s ", word); err != nil {
-						return err
-					}
-					
-					// Flush immediately for streaming
-					if flusher, ok := c.Response().Writer.(http.Flusher); ok {
-						flusher.Flush()
-					}
-					
-					generatedData.WriteString(word)
-					generatedData.WriteString(" ")
-					wordsGenerated += 1
-					goto end
-				}
-				
-				// Send single word
-				if _, err := fmt.Fprintf(c.Response().Writer, "%s ", word); err != nil {
-					return err
-				}
-				
-				// Flush immediately for streaming
-				if flusher, ok := c.Response().Writer.(http.Flusher); ok {
-					flusher.Flush()
-				}
-				
-				generatedData.WriteString(word)
-				generatedData.WriteString(" ")
-				wordsGenerated += 1
-				
-				// Random delay (0.5-1 second)
-				delay := time.Duration(rand.Intn(500)+500) * time.Millisecond
-				time.Sleep(delay)
 			}
+			
+			word, stopTokenFound := services.GenerateRandomWords(streamRand, 1, stopToken)
+	
+			if _, err := fmt.Fprintf(c.Response().Writer, "%s ", word); err != nil {
+				return err
+			}
+			if flusher, ok := c.Response().Writer.(http.Flusher); ok {
+				flusher.Flush()
+			}
+	
+			generatedData.WriteString(word + " ")
+			wordsGenerated += 1
+	
+			if stopTokenFound {
+				goto end
+			}
+	
+			delay := time.Duration(rand.Intn(500)+500) * time.Millisecond
+			time.Sleep(delay)
 		}
+	}
+	
 	
 end:
 	duration := time.Since(startTime).Seconds()
