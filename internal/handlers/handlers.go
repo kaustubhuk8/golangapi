@@ -72,6 +72,21 @@ func (h *Handler) GenerateData(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "X-User-Id header is required")
 	}
 	
+	// Get stop token from header (optional)
+	stopToken := c.Request().Header.Get("X-Stop-Token")
+	seedStr := c.Request().Header.Get("X-Seed")
+	var streamRand *rand.Rand
+
+	if seedStr != "" {
+		// Deterministic mode
+		seed := int64(0)
+		fmt.Sscanf(seedStr, "%d", &seed)
+		streamRand = rand.New(rand.NewSource(seed))
+	} else {
+		// Random mode
+		streamRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	}
+	
 	// Check rate limit
 	if !h.rateLimiter.IsAllowed(userID) {
 		return echo.NewHTTPError(http.StatusTooManyRequests, "Rate limit exceeded")
@@ -112,8 +127,26 @@ func (h *Handler) GenerateData(c echo.Context) error {
 					goto end
 				}
 				
-				// Generate single random word
-				word := services.GenerateRandomWords(1)
+				// Generate single random word with optional stop token support
+				word, stopTokenFound := services.GenerateRandomWords(streamRand,1, stopToken)
+				
+				// Check if stop token was generated
+				if stopTokenFound {
+					// Send the stop token and end
+					if _, err := fmt.Fprintf(c.Response().Writer, "%s ", word); err != nil {
+						return err
+					}
+					
+					// Flush immediately for streaming
+					if flusher, ok := c.Response().Writer.(http.Flusher); ok {
+						flusher.Flush()
+					}
+					
+					generatedData.WriteString(word)
+					generatedData.WriteString(" ")
+					wordsGenerated += 1
+					goto end
+				}
 				
 				// Send single word
 				if _, err := fmt.Fprintf(c.Response().Writer, "%s ", word); err != nil {

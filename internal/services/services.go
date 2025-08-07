@@ -88,8 +88,8 @@ func (s *RequestService) SaveRequest(ctx context.Context, userID, data string, d
 	return nil
 }
 
-// Generate random words for streaming
-func GenerateRandomWords(count int) string {
+// Generate random words for streaming with optional stop token support
+func GenerateRandomWords(rng *rand.Rand, count int, stopToken string) (string, bool) {
 	words := []string{
 		"the", "be", "to", "of", "and", "a", "in", "that", "have", "I",
 		"it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
@@ -104,13 +104,18 @@ func GenerateRandomWords(count int) string {
 	}
 	
 	var result []string
+	stopTokenFound := false
+	
 	for i := 0; i < count; i++ {
-		result = append(result, words[rand.Intn(len(words))])
+		word := words[rng.Intn(len(words))]
+		result = append(result, word)
+		
+		// Check if stop token was generated (must be an existing word from the list)
+		if stopToken != "" && word == stopToken {
+			stopTokenFound = true
+			break // Stop generating more words
+		}
 	}
 	
-	return strings.Join(result, " ")
+	return strings.Join(result, " "), stopTokenFound
 }
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-} 
