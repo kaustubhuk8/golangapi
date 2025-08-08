@@ -11,16 +11,18 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"manifold-test/internal/config"
 	"manifold-test/internal/database"
 	"manifold-test/internal/handlers"
+	appmetrics "manifold-test/internal/metrics"
 	"manifold-test/internal/middleware/ratelimit"
 	"manifold-test/internal/services"
 )
 
 func main() {
-	
 	// Load configuration
 	cfg := config.Load()
 
@@ -47,10 +49,14 @@ func main() {
 	// Initialize Echo
 	e := echo.New()
 
-	// Middleware
+	// Core middleware (keep it minimal / production sane)
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
+
+	// Register Prometheus metrics
+	reg := prometheus.DefaultRegisterer
+	appmetrics.MustRegister(reg)
 
 	// Initialize handlers
 	h := handlers.NewHandler(userService, requestService, rateLimiter, redisClient)
@@ -59,6 +65,9 @@ func main() {
 	e.GET("/health", h.HealthCheck)
 	e.POST("/generate-data", h.GenerateData)
 	e.GET("/user/stats", h.GetUserStats)
+
+	// Prometheus metrics endpoint
+	e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 
 	// Start server
 	go func() {
@@ -81,4 +90,4 @@ func main() {
 	}
 
 	log.Println("Server exited")
-} 
+}
