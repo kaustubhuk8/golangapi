@@ -1,27 +1,27 @@
-.PHONY: build run test docker-build docker-up docker-down
+.PHONY: docker-build docker-up docker-down monitor-check load-test-quick load-test-full fresh-start
 
 APP_NAME := manifold-api
 
-build: ## Build the Go application
-	go mod tidy
-	go build -o bin/$(APP_NAME) ./cmd/api
-
-run: build ## Run the application locally
-	./bin/$(APP_NAME)
-
-test: ## Run tests
-	go test ./...
-
-docker-build: ## Build Docker image
+docker-build:
 	docker build -t $(APP_NAME) .
 
-docker-up: ## Start services via Docker Compose
+docker-up:
 	docker-compose up -d
 
-docker-down: ## Stop services
+docker-down:
 	docker-compose down
 
-fresh-start: ## Project-local reset: stops and resets only this app
+load-test-quick: 
+	@go build -o bin/load_test ./cmd/load_test
+	@echo "Running load test (50 requests, 10 concurrent workers)..."
+	@./bin/load_test quick
+
+load-test-full:
+	@go build -o bin/load_test ./cmd/load_test
+	@echo "Running load test (5000 requests, 100 concurrent workers)..."
+	@./bin/load_test
+
+fresh-start:
 	docker-compose down -v
 
 	rm -rf bin/
@@ -31,5 +31,3 @@ fresh-start: ## Project-local reset: stops and resets only this app
 	docker-compose build --no-cache
 
 	docker-compose up -d
-
-

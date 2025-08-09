@@ -1,115 +1,123 @@
-# Manifold Labs — Takehome Project
+# Manifold API — Take-Home Project
 
-A high-concurrency Go API that simulates a real-time LLM inference service with streaming responses, per-user rate limits, and word quota enforcement.
+A Go API that simulates a high-concurrency LLM streaming service with per-user quotas, rate limiting, and lightweight monitoring.
 
 ## Overview
 
-This service streams random words with natural delays to simulate LLM output. It handles 1000s of concurrent requests while tracking user quota and enforcing request limits. Designed for production-style load testing with Docker, Redis, and MySQL integration.
+The service streams random words with small delays to mimic an LLM response. It tracks each user's remaining word quota, rejects requests when quotas are exceeded, and enforces basic per-user rate limits.  
+Prometheus metrics and a simple Grafana dashboard are included for quick operational insight.
 
-## Features
+---
 
-- **Streaming Words**: Random word stream (0.5–1s delay per word)
-- **Stop Token**: Ends the stream early if a generated word matches a given token
-- **User Quota**: 1,000,000-word allowance per user (stored in MySQL, cached in Redis)
-- **Rate Limiting**: 100 requests/minute per user (in-memory sliding window)
-- **Concurrent Safe**: Context handling, goroutines, background DB writes
-- **Dockerized**: One-step orchestration with Redis and MySQL
-- **Optional Seeded Output**: Predictable word stream via `X-Seed` header
+## Prerequisites
 
-## API Endpoints
-
-#### `POST /generate-data`
-
-- Headers:
-
-  - `X-User-Id`: (required)
-  - `X-Stop-Token`: (optional)
-  - `X-Seed`: (optional) deterministic stream if provided
-
-- Behavior:
-  - Streams English words line by line (up to 60s)
-  - Stops if `stop-token` is encountered
-
-#### `GET /user/stats`
-
-Returns current word quota for the user.
-
-#### `GET /health`
-
-Liveness check for API, DB, and Redis.
-
-## Setup
-
-### Prerequisites
-
-- Docker + Docker Compose
+- Docker & Docker Compose
 - Go 1.21+ (only if building locally)
 
-### Quick Start
+---
 
-```bash
-make fresh-start
-```
+## Running the Service
 
-Starts a clean environment: rebuilds images, starts services, clears Redis, and resets DB state.
-
-To just run the app:
+**Start everything** (API, MySQL, Redis, Prometheus, Grafana):
 
 ```bash
 make docker-up
 ```
 
-### Example Requests
+**Fresh start** (wipe DB & Redis, rebuild images):
 
 ```bash
-# Start streaming
-curl -X POST -H "X-User-Id: test_user" --no-buffer http://localhost:8080/generate-data
-
-# With stop token
-curl -X POST -H "X-User-Id: test_user" -H "X-Stop-Token: day" --no-buffer http://localhost:8080/generate-data
-
-# With deterministic seed
-curl -X POST -H "X-User-Id: test_user" -H "X-Seed: 42" --no-buffer http://localhost:8080/generate-data
+make fresh-start
 ```
+
+**Stop services:**
+
+```bash
+make docker-down
+```
+
+---
+
+## API Endpoints
+
+### Start Streaming
+
+```bash
+curl -X POST -H "X-User-Id: test_user" --no-buffer \
+  http://localhost:8080/generate-data
+```
+
+### With Stop Token
+
+```bash
+curl -X POST -H "X-User-Id: test_user" -H "X-Stop-Token: day" --no-buffer \
+  http://localhost:8080/generate-data
+```
+
+### With Deterministic Output
+
+```bash
+curl -X POST -H "X-User-Id: test_user" -H "X-Seed: 42" --no-buffer \
+  http://localhost:8080/generate-data
+```
+
+### User Quota Stats
+
+```bash
+curl -H "X-User-Id: test_user" http://localhost:8080/user/stats
+```
+
+### Health Check
+
+```bash
+curl http://localhost:8080/health
+```
+
+### Metrics (Prometheus format)
+
+```bash
+curl http://localhost:8080/metrics
+```
+
+---
+
+## Monitoring
+
+- **Grafana** → http://localhost:3000 (admin/admin)
+- **Prometheus** → http://localhost:9090
+- **API** → http://localhost:8080
+
+The default dashboard shows:
+
+- Request volume and concurrency
+- Latency percentiles (p50 / p95 / p99)
+- Words generated over time
+- DB write times
+- Rate-limit rejections
+
+---
 
 ## Load Testing
 
-- `make load-test-quick` — 50 requests / 10 workers (~5 mins)
-- `make load-test-full` — 5000 requests / 100 workers (~60–90 mins)
-
-## Development
+**Quick load test** (50 requests, 10 workers):
 
 ```bash
-make help          # List commands
-make dev           # Run with hot reload (requires 'air')
-make docker-logs   # View logs
-make stats         # View user + health stats
-make monitor       # Stream system status
+make load-test-quick
 ```
+
+**Full load test** (5000 requests, 100 workers):
+
+```bash
+make load-test-full
+```
+
+---
 
 ## Tech Stack
 
-- **Go 1.21**
-- **MySQL 8** (Docker, port `3307`)
-- **Redis** (Docker, port `6380`)
+- **Go 1.21** with Echo framework
+- **MySQL 8** for persistent storage
+- **Redis** for caching and session management
+- **Prometheus** for metrics collection
+- **Grafana** for monitoring dashboards
 - **Docker Compose** for orchestration
-- **Makefile** for repeatable commands
-
-## Schema Summary
-
-```sql
-CREATE TABLE users (
-  user_id VARCHAR(255) PRIMARY KEY,
-  words_left INT DEFAULT 1000000,
-  total_words INT DEFAULT 1000000,
-  ...
-);
-
-CREATE TABLE requests (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  user_id VARCHAR(255),
-  data TEXT,
-  duration INT,
-  ...
-);
-```
