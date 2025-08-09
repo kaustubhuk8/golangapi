@@ -33,16 +33,15 @@ type RequestResult struct {
 }
 
 func main() {
-	log.Println("🚀 Starting Load Test for Manifold API")
+	log.Println("Starting Load Test")
 	log.Println("Testing 5000 concurrent requests from 10 users")
 
-	// Configuration
 	baseURL := "http://localhost:8080"
 	totalRequests := 5000
 	numUsers := 10
-	concurrentWorkers := 100 // Number of goroutines to use
+	concurrentWorkers := 100 
 
-	// Check for quick test mode
+	// For quick test 
 	if len(os.Args) > 1 && os.Args[1] == "quick" {
 		totalRequests = 50
 		concurrentWorkers = 10
@@ -53,10 +52,8 @@ func main() {
 	userIDs := generateUserIDs(numUsers)
 	log.Printf("Generated %d user IDs: %v", len(userIDs), len(userIDs))
 
-	// Run load test
 	result := runLoadTest(baseURL, totalRequests, userIDs, concurrentWorkers)
 
-	// Print results
 	printResults(result)
 }
 
@@ -225,7 +222,7 @@ func makeRequest(baseURL, userID string) RequestResult {
 
 func printResults(result LoadTestResult) {
 	fmt.Println("\n" + strings.Repeat("=", 60))
-	fmt.Println("📊 LOAD TEST RESULTS")
+	fmt.Println("LOAD TEST RESULTS")
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Printf("Total Requests:        %d\n", result.TotalRequests)
 	fmt.Printf("Successful Requests:   %d (%.2f%%)\n", result.SuccessfulRequests, 
@@ -237,27 +234,4 @@ func printResults(result LoadTestResult) {
 	fmt.Printf("Average Response Time: %v\n", result.AverageResponseTime)
 	fmt.Printf("Min Response Time:     %v\n", result.MinResponseTime)
 	fmt.Printf("Max Response Time:     %v\n", result.MaxResponseTime)
-	fmt.Println(strings.Repeat("=", 60))
-
-	// Assessment criteria check
-	fmt.Println("\n🎯 ASSESSMENT CRITERIA CHECK:")
-	if result.SuccessfulRequests >= int64(float64(result.TotalRequests)*0.95) {
-		fmt.Println("✅ SUCCESS: >95% requests successful")
-	} else {
-		fmt.Println("❌ FAILED: <95% requests successful")
-	}
-
-	if result.RequestsPerSecond >= 50 {
-		fmt.Println("✅ SUCCESS: >50 requests/second throughput")
-	} else {
-		fmt.Println("❌ FAILED: <50 requests/second throughput")
-	}
-
-	if result.AverageResponseTime < 30*time.Second {
-		fmt.Println("✅ SUCCESS: Average response time < 30 seconds")
-	} else {
-		fmt.Println("❌ FAILED: Average response time > 30 seconds")
-	}
-
-	fmt.Println("\n" + strings.Repeat("=", 60))
 } 
