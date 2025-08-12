@@ -108,7 +108,7 @@ This dashboard shows:
 
 ---
 
-## Load Testing
+## Load Testing (You will need to clone the repo for this to work)
 
 **Quick load test** (50 requests, 10 workers):
 
