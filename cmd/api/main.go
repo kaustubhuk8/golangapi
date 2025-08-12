@@ -49,7 +49,7 @@ func main() {
 	// Initialize Echo
 	e := echo.New()
 
-	// Core middleware (keep it minimal / production sane)
+	// Core middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
@@ -65,8 +65,6 @@ func main() {
 	e.GET("/health", h.HealthCheck)
 	e.POST("/generate-data", h.GenerateData)
 	e.GET("/user/stats", h.GetUserStats)
-
-	// Prometheus metrics endpoint
 	e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 
 	// Start server
