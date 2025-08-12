@@ -9,85 +9,95 @@ Prometheus metrics and a simple Grafana dashboard are included for quick operati
 
 ---
 
-## Prerequisites
+## Live EC2 Deployment
 
-- Docker & Docker Compose
-- Go 1.21+ (only if building locally)
+The service is deployed at:
 
----
-
-## Running the Service
-
-**Start everything** (API, MySQL, Redis, Prometheus, Grafana):
-
-```bash
-make docker-up
 ```
-
-**Fresh start** (wipe DB & Redis, rebuild images):
-
-```bash
-make fresh-start
+http://3.138.235.69:8080
 ```
-
-**Stop services:**
-
-```bash
-make docker-down
-```
-
----
-
-## API Endpoints
 
 ### Start Streaming
 
 ```bash
-curl -X POST -H "X-User-Id: test_user" --no-buffer \
-  http://localhost:8080/generate-data
+curl -X POST -H "X-User-Id: test_user" --no-buffer http://3.138.235.69:8080/generate-data
 ```
 
 ### With Stop Token
 
 ```bash
-curl -X POST -H "X-User-Id: test_user" -H "X-Stop-Token: day" --no-buffer \
-  http://localhost:8080/generate-data
+curl -X POST -H "X-User-Id: test_user" -H "X-Stop-Token: day" --no-buffer http://3.138.235.69:8080/generate-data
 ```
 
 ### With Deterministic Output
 
 ```bash
-curl -X POST -H "X-User-Id: test_user" -H "X-Seed: 42" --no-buffer \
-  http://localhost:8080/generate-data
+curl -X POST -H "X-User-Id: test_user" -H "X-Seed: 42" --no-buffer http://3.138.235.69:8080/generate-data
 ```
 
 ### User Quota Stats
 
 ```bash
-curl -H "X-User-Id: test_user" http://localhost:8080/user/stats
+curl -H "X-User-Id: test_user" http://3.138.235.69:8080/user/stats
 ```
 
 ### Health Check
 
 ```bash
-curl http://localhost:8080/health
+curl http://3.138.235.69:8080/health
 ```
 
 ### Metrics (Prometheus format)
 
 ```bash
-curl http://localhost:8080/metrics
+curl http://3.138.235.69:8080/metrics
 ```
+
+---
+
+## Running Locally (If EC2 is Unavailable)
+
+### Prerequisites
+
+- Docker & Docker Compose
+- Go 1.21+ (only if building locally)
+
+### Start All Services
+
+```bash
+make docker-up
+```
+
+### Fresh Start (wipe DB & Redis, rebuild images)
+
+```bash
+make fresh-start
+```
+
+### Stop Services
+
+```bash
+make docker-down
+```
+
+Once started locally, the services will be available at:
+
+- **API** → http://localhost:8080
+- **Prometheus** → http://localhost:9090
+- **Grafana** → http://localhost:3000 (username: `admin`, password: `admin`)
 
 ---
 
 ## Monitoring
 
-- **Grafana** → http://localhost:3000 (admin/admin)
-- **Prometheus** → http://localhost:9090
-- **API** → http://localhost:8080
+Grafana dashboards are preloaded.  
+To view the main dashboard:
 
-The default dashboard shows:
+1. Open **http://localhost:3000/dashboards**
+2. Log in with **username:** `admin` and **password:** `admin`
+3. Select **Manifold Demo**
+
+This dashboard shows:
 
 - Request volume and concurrency
 - Latency percentiles (p50 / p95 / p99)

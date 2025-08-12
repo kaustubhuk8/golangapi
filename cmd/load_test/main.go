@@ -36,7 +36,7 @@ func main() {
 	log.Println("Starting Load Test")
 	log.Println("Testing 5000 concurrent requests from 10 users")
 
-	baseURL := "http://localhost:8080"
+	baseURL := "http://3.138.235.69:8080"
 	totalRequests := 5000
 	numUsers := 10
 	concurrentWorkers := 100 
