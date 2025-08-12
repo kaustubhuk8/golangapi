@@ -23,16 +23,17 @@ http://3.138.235.69:8080
 curl -X POST -H "X-User-Id: test_user" --no-buffer http://3.138.235.69:8080/generate-data
 ```
 
-### With Stop Token
-
-```bash
-curl -X POST -H "X-User-Id: test_user" -H "X-Stop-Token: day" --no-buffer http://3.138.235.69:8080/generate-data
-```
-
 ### With Deterministic Output
 
 ```bash
 curl -X POST -H "X-User-Id: test_user" -H "X-Seed: 42" --no-buffer http://3.138.235.69:8080/generate-data
+```
+
+
+### With Stop Token
+
+```bash
+curl -X POST -H "X-User-Id: test_user" -H "X-Seed: 42" -H "X-Stop-Token: by" --no-buffer http://3.138.235.69:8080/generate-data
 ```
 
 ### User Quota Stats
