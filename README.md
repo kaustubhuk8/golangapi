@@ -94,7 +94,7 @@ Once started locally, the services will be available at:
 Grafana dashboards are preloaded.  
 To view the main dashboard:
 
-1. Open **http://localhost:3000/dashboards**
+1. Open **http://3.138.235.69:3000/dashboards**
 2. Log in with **username:** `admin` and **password:** `admin`
 3. Select **Manifold Demo**
 
