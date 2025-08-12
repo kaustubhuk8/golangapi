@@ -62,6 +62,9 @@ func main() {
 	h := handlers.NewHandler(userService, requestService, rateLimiter, redisClient)
 
 	// Routes
+	e.GET("/", func(c echo.Context) error {
+		return c.String(http.StatusOK, "API is running! \n\nAvailable endpoints:\n- GET  /health \n- POST /generate-data\n- GET  /user/stats\n- GET  /metrics")
+	})
 	e.GET("/health", h.HealthCheck)
 	e.POST("/generate-data", h.GenerateData)
 	e.GET("/user/stats", h.GetUserStats)
