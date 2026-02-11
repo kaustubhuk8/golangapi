@@ -1,4 +1,4 @@
-# Manifold API — Take-Home Project
+# Scalable Streaming API Platform
 
 A Go API that simulates a high-concurrency LLM streaming service with per-user quotas, rate limiting, and lightweight monitoring.
 
